@@ -7,14 +7,31 @@ const camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.5,1000);cons
 scene.add(new THREE.HemisphereLight(0xffffff,0x60966e,2.1));const sun=new THREE.DirectionalLight(0xfff5d7,2.2);sun.position.set(-70,110,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-260;sun.shadow.camera.right=260;sun.shadow.camera.top=260;sun.shadow.camera.bottom=-260;scene.add(sun);
 const mat=(c)=>new THREE.MeshLambertMaterial({color:c});const grass=mat(0x91cf55),fairway=mat(0xb5df60),trunk=mat(0x926246),leaf=mat(0x267f67),leaf2=mat(0x70aa31),sand=mat(0xeed09a),water=mat(0x18acd4),metal=mat(0xe3e8e5);
 function mesh(geo,m,x,y,z,shadow=false){const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=shadow;o.receiveShadow=true;scene.add(o);return o}
-const islandBase=mesh(new THREE.BoxGeometry(530,24,530),mat(0x9b6947),0,-12.4,0,true);const islandRim=mesh(new THREE.BoxGeometry(530,2,530),mat(0x6caa42),0,-1.4,0,true);const ground=mesh(new THREE.PlaneGeometry(530,530),grass,0,0,0);ground.rotation.x=-Math.PI/2;
+// Sculpted, stepped diorama foundation with faceted earth sides.
+const earth=mat(0x9c6948),earthDark=mat(0x78503f),edgeGrass=mat(0x72a943);
+mesh(new THREE.BoxGeometry(530,18,530),earth,0,-10,0,true);
+mesh(new THREE.BoxGeometry(534,4,534),earthDark,0,-21,0,true);
+mesh(new THREE.BoxGeometry(530,3,530),edgeGrass,0,-1.8,0,true);
+const ground=mesh(new THREE.PlaneGeometry(530,530),grass,0,.04,0);ground.rotation.x=-Math.PI/2;
+const ledgeColors=[mat(0xa97651),mat(0xb78259),mat(0x855740)];
+for(let j=0;j<22;j++){const x=-252+j*24;mesh(new THREE.BoxGeometry(23,10+(j%3)*2,1.2),ledgeColors[j%3],x,-11,265.8,true);mesh(new THREE.BoxGeometry(1.2,10+(j%3)*2,23),ledgeColors[(j+1)%3],265.8,-11,x,true)}
 const tee=new THREE.Vector3(0,0,150);const targets=[new THREE.Vector3(-95,0,35),new THREE.Vector3(75,0,-80),new THREE.Vector3(155,0,85),new THREE.Vector3(-145,0,-125),new THREE.Vector3(5,0,-195)];
 const colors=[0xf45b56,0xffd14f,0x70df72,0x75a8ff,0xc998f1];
-for(const t of targets){const dx=t.x-tee.x,dz=t.z-tee.z,length=Math.hypot(dx,dz);let strip=mesh(new THREE.PlaneGeometry(39,length*.88),fairway,(t.x+tee.x)/2,.07,(t.z+tee.z)/2);strip.rotation.x=-Math.PI/2;strip.rotation.z=-Math.atan2(dx,dz);const pad=mesh(new THREE.CylinderGeometry(13,13,.4,8),mat(0x78b742),t.x,.2,t.z,true)}
-const lakeShore=mesh(new THREE.CircleGeometry(49,16),mat(0xf6d9a5),48,.10,-33);lakeShore.rotation.x=-Math.PI/2;lakeShore.scale.set(1.5,1,1);const lake=mesh(new THREE.CircleGeometry(47,16),water,48,.14,-33);lake.rotation.x=-Math.PI/2;lake.scale.set(1.5,1,1);
+// Curved, segmented fairways: broad gentle bends instead of rectangular strips.
+const fairwayBands=[mat(0xb9e65d),mat(0xa9d84d),mat(0xc2e96a)];
+function ribbon(points,width,material,y=.13){const verts=[],inds=[];for(let i=0;i<points.length;i++){const a=points[Math.max(0,i-1)],b=points[Math.min(points.length-1,i+1)];const dx=b.x-a.x,dz=b.z-a.z,inv=1/Math.max(.001,Math.hypot(dx,dz));const nx=-dz*inv,nz=dx*inv;verts.push(points[i].x+nx*width/2,y,points[i].z+nz*width/2,points[i].x-nx*width/2,y,points[i].z-nz*width/2);if(i<points.length-1){const k=i*2;inds.push(k,k+1,k+2,k+1,k+3,k+2)}}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setIndex(inds);geo.computeVertexNormals();const o=new THREE.Mesh(geo,material);o.receiveShadow=true;scene.add(o)}
+for(let i=0;i<targets.length;i++){const t=targets[i],dx=t.x-tee.x,dz=t.z-tee.z,dist=Math.hypot(dx,dz),nx=-dz/dist,nz=dx/dist,points=[];for(let j=0;j<=24;j++){const u=j/24,bend=Math.sin(u*Math.PI)*((i%2?1:-1)*Math.min(28,dist*.12));points.push({x:tee.x+dx*u+nx*bend,z:tee.z+dz*u+nz*bend})}ribbon(points,48,fairwayBands[i%3]);ribbon(points,31,fairwayBands[(i+1)%3],.15);mesh(new THREE.CylinderGeometry(14,14,.4,12),mat(0x83c546),t.x,.25,t.z,true)}
+const lakeShore=mesh(new THREE.CircleGeometry(49,32),mat(0xf6d9a5),48,.10,-33);lakeShore.rotation.x=-Math.PI/2;lakeShore.scale.set(1.5,1,1);const lake=mesh(new THREE.CircleGeometry(47,32),water,48,.14,-33);lake.rotation.x=-Math.PI/2;lake.scale.set(1.5,1,1);
 for(let i=0;i<13;i++){let x=(Math.sin(i*2.7)*110),z=(Math.cos(i*3.8)*115);if(Math.hypot(x-48,z+33)<67)continue;let patch=mesh(new THREE.CircleGeometry(8+i%5*3,8),sand,x,.09,z);patch.rotation.x=-Math.PI/2}
 const trees=[];let seed=1234;function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
-for(let i=0;i<140;i++){let x=(rnd()-.5)*470,z=(rnd()-.5)*470;if(Math.hypot(x,z-150)<28||targets.some(t=>Math.hypot(x-t.x,z-t.z)<19)||Math.hypot(x-48,z+33)<65)continue;const h=9+rnd()*15;mesh(new THREE.CylinderGeometry(1.3,1.8,h*.55,5),trunk,x,h*.275,z,true);const radius=6+rnd()*4;let top=mesh(new THREE.ConeGeometry(radius,h,5),i%2?leaf:leaf2,x,h*.72,z,true);const crown=mesh(new THREE.ConeGeometry(radius*.55,h*.43,5),i%2?mat(0x54ac82):mat(0xa3ce4e),x,h*1.01,z,true);trees.push({x,z,r:radius,h,base:h*.22,top:h*1.22,trunkR:2.1})}
+const foliagePalette=[mat(0x8ecb29),mat(0xb3d73a),mat(0x55ad49),mat(0x338c75),mat(0xef8c3b),mat(0xe66c48)];
+const pinePalette=[mat(0x267e70),mat(0x328e72),mat(0x49a279)];
+for(let i=0;i<110;i++){let x=(rnd()-.5)*470,z=(rnd()-.5)*470;if(Math.hypot(x,z-150)<29||targets.some(t=>Math.hypot(x-t.x,z-t.z)<21)||((x-48)/79)**2+((z+33)/57)**2<1)continue;
+const h=12+rnd()*14,radius=6+rnd()*4,pine=i%4===0;
+mesh(new THREE.CylinderGeometry(1.3,2,h*.55,5),trunk,x,h*.275,z,true);
+if(pine){for(let tier=0;tier<3;tier++){const rr=radius*(1-tier*.24),hh=h*.54;mesh(new THREE.ConeGeometry(rr,hh,5),pinePalette[(i+tier)%3],x,h*(.47+tier*.24),z,true)}}
+else{const palette=foliagePalette[(i*7+Math.floor(rnd()*3))%foliagePalette.length];const crown=mesh(new THREE.IcosahedronGeometry(radius,0),palette,x,h*.83,z,true);crown.scale.set(1.05,.85,1.05);for(let k=0;k<3;k++){const a=k*2.09+i;const lobe=mesh(new THREE.IcosahedronGeometry(radius*.63,0),foliagePalette[(i+k+1)%foliagePalette.length],x+Math.cos(a)*radius*.58,h*(.76+(k%2)*.13),z+Math.sin(a)*radius*.58,true);lobe.scale.y=.8}}
+trees.push({x,z,r:radius,h,base:h*.22,top:h*1.22,trunkR:2.1})}
 // Small, graphic park accents: faceted flower beds and colorful benches, away from flight targets.
 const decoColors=[mat(0xf3a36c),mat(0xf5d06c),mat(0xe7808c),mat(0x74c8b0)];
 for(let i=0;i<48;i++){const x=(rnd()-.5)*485,z=(rnd()-.5)*485;if(Math.hypot(x-48,z+33)<77||targets.some(t=>Math.hypot(x-t.x,z-t.z)<23)||Math.hypot(x,z-150)<24)continue;const c=decoColors[i%4];mesh(new THREE.DodecahedronGeometry(1.4+rnd()*1.4,0),c,x,1.1,z,true)}
