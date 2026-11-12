@@ -15,6 +15,10 @@ mesh(new THREE.BoxGeometry(530,3,530),edgeGrass,0,-1.8,0,true);
 const ground=mesh(new THREE.PlaneGeometry(530,530),grass,0,.04,0);ground.rotation.x=-Math.PI/2;
 const ledgeColors=[mat(0xa97651),mat(0xb78259),mat(0x855740)];
 for(let j=0;j<22;j++){const x=-252+j*24;mesh(new THREE.BoxGeometry(23,10+(j%3)*2,1.2),ledgeColors[j%3],x,-11,265.8,true);mesh(new THREE.BoxGeometry(1.2,10+(j%3)*2,23),ledgeColors[(j+1)%3],265.8,-11,x,true)}
+// Hand-composed low-poly terrain landmarks. Keep play surface at y=0 so flight physics stays accurate.
+const cliffTop=mat(0x80b950),cliffFace=mat(0xb58b64),cliffShade=mat(0x8e654c);
+function terrainMesa(cx,cz,rx,rz,height,segments=9){const verts=[],inds=[];for(let layer=0;layer<3;layer++){const y=[.15,height*.52,height][layer],scale=[1,.85,.69][layer];for(let i=0;i<segments;i++){const a=i*Math.PI*2/segments;const wobble=1+.09*Math.sin(i*3.7+cx);verts.push(cx+Math.cos(a)*rx*scale*wobble,y,cz+Math.sin(a)*rz*scale*wobble)}}for(let layer=0;layer<2;layer++)for(let i=0;i<segments;i++){const a=layer*segments+i,b=layer*segments+(i+1)%segments,c=(layer+1)*segments+i,d=(layer+1)*segments+(i+1)%segments;inds.push(a,b,c,b,d,c)}const center=verts.length/3;verts.push(cx,height+.05,cz);for(let i=0;i<segments;i++)inds.push(center,2*segments+i,2*segments+(i+1)%segments);const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.setIndex(inds);g.computeVertexNormals();const m=new THREE.Mesh(g,[cliffFace,cliffShade,cliffTop][0]);m.material=cliffFace;m.castShadow=true;m.receiveShadow=true;scene.add(m);const top=mesh(new THREE.CylinderGeometry(Math.min(rx,rz)*.62,Math.min(rx,rz)*.72,.8,segments),cliffTop,cx,height,cz,true);top.scale.x=rx/Math.max(1,rz);return m}
+for(const [x,z,rx,rz,h] of [[-208,-20,27,36,13],[-212,-172,37,28,17],[200,-184,32,35,15],[-205,205,36,26,12],[204,194,30,30,14]])terrainMesa(x,z,rx,rz,h);
 const tee=new THREE.Vector3(0,0,150);const targets=[new THREE.Vector3(-95,0,35),new THREE.Vector3(75,0,-80),new THREE.Vector3(155,0,85),new THREE.Vector3(-145,0,-125),new THREE.Vector3(5,0,-195)];
 const colors=[0xf45b56,0xffd14f,0x70df72,0x75a8ff,0xc998f1];
 // Curved, segmented fairways: broad gentle bends instead of rectangular strips.
@@ -22,11 +26,11 @@ const fairwayBands=[mat(0xb9e65d),mat(0xa9d84d),mat(0xc2e96a)];
 function ribbon(points,width,material,y=.13){const verts=[],inds=[];for(let i=0;i<points.length;i++){const a=points[Math.max(0,i-1)],b=points[Math.min(points.length-1,i+1)];const dx=b.x-a.x,dz=b.z-a.z,inv=1/Math.max(.001,Math.hypot(dx,dz));const nx=-dz*inv,nz=dx*inv;verts.push(points[i].x+nx*width/2,y,points[i].z+nz*width/2,points[i].x-nx*width/2,y,points[i].z-nz*width/2);if(i<points.length-1){const k=i*2;inds.push(k,k+1,k+2,k+1,k+3,k+2)}}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setIndex(inds);geo.computeVertexNormals();const o=new THREE.Mesh(geo,material);o.receiveShadow=true;scene.add(o)}
 for(let i=0;i<targets.length;i++){const t=targets[i],dx=t.x-tee.x,dz=t.z-tee.z,dist=Math.hypot(dx,dz),nx=-dz/dist,nz=dx/dist,points=[];for(let j=0;j<=24;j++){const u=j/24,bend=Math.sin(u*Math.PI)*((i%2?1:-1)*Math.min(28,dist*.12));points.push({x:tee.x+dx*u+nx*bend,z:tee.z+dz*u+nz*bend})}ribbon(points,48,fairwayBands[i%3]);ribbon(points,31,fairwayBands[(i+1)%3],.15);mesh(new THREE.CylinderGeometry(14,14,.4,12),mat(0x83c546),t.x,.25,t.z,true)}
 const lakeShore=mesh(new THREE.CircleGeometry(49,32),mat(0xf6d9a5),48,.10,-33);lakeShore.rotation.x=-Math.PI/2;lakeShore.scale.set(1.5,1,1);const lake=mesh(new THREE.CircleGeometry(47,32),water,48,.14,-33);lake.rotation.x=-Math.PI/2;lake.scale.set(1.5,1,1);
-for(let i=0;i<13;i++){let x=(Math.sin(i*2.7)*110),z=(Math.cos(i*3.8)*115);if(Math.hypot(x-48,z+33)<67)continue;let patch=mesh(new THREE.CircleGeometry(8+i%5*3,8),sand,x,.09,z);patch.rotation.x=-Math.PI/2}
+for(let i=0;i<8;i++){let x=(Math.sin(i*2.7)*110),z=(Math.cos(i*3.8)*115);if(Math.hypot(x-48,z+33)<67)continue;let patch=mesh(new THREE.CircleGeometry(8+i%5*3,8),sand,x,.09,z);patch.rotation.x=-Math.PI/2}
 const trees=[];let seed=1234;function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
 const foliagePalette=[mat(0x8ecb29),mat(0xb3d73a),mat(0x55ad49),mat(0x338c75),mat(0xef8c3b),mat(0xe66c48)];
 const pinePalette=[mat(0x267e70),mat(0x328e72),mat(0x49a279)];
-for(let i=0;i<110;i++){let x=(rnd()-.5)*470,z=(rnd()-.5)*470;if(Math.hypot(x,z-150)<29||targets.some(t=>Math.hypot(x-t.x,z-t.z)<21)||((x-48)/79)**2+((z+33)/57)**2<1)continue;
+for(let i=0;i<82;i++){let x=(rnd()-.5)*470,z=(rnd()-.5)*470;if(Math.hypot(x,z-150)<29||targets.some(t=>Math.hypot(x-t.x,z-t.z)<21)||((x-48)/79)**2+((z+33)/57)**2<1)continue;
 const h=12+rnd()*14,radius=6+rnd()*4,pine=i%4===0;
 mesh(new THREE.CylinderGeometry(1.3,2,h*.55,5),trunk,x,h*.275,z,true);
 if(pine){for(let tier=0;tier<3;tier++){const rr=radius*(1-tier*.24),hh=h*.54;mesh(new THREE.ConeGeometry(rr,hh,5),pinePalette[(i+tier)%3],x,h*(.47+tier*.24),z,true)}}
@@ -34,11 +38,11 @@ else{const palette=foliagePalette[(i*7+Math.floor(rnd()*3))%foliagePalette.lengt
 trees.push({x,z,r:radius,h,base:h*.22,top:h*1.22,trunkR:2.1})}
 // Small, graphic park accents: faceted flower beds and colorful benches, away from flight targets.
 const decoColors=[mat(0xf3a36c),mat(0xf5d06c),mat(0xe7808c),mat(0x74c8b0)];
-for(let i=0;i<48;i++){const x=(rnd()-.5)*485,z=(rnd()-.5)*485;if(Math.hypot(x-48,z+33)<77||targets.some(t=>Math.hypot(x-t.x,z-t.z)<23)||Math.hypot(x,z-150)<24)continue;const c=decoColors[i%4];mesh(new THREE.DodecahedronGeometry(1.4+rnd()*1.4,0),c,x,1.1,z,true)}
+for(let i=0;i<26;i++){const x=(rnd()-.5)*485,z=(rnd()-.5)*485;if(Math.hypot(x-48,z+33)<77||targets.some(t=>Math.hypot(x-t.x,z-t.z)<23)||Math.hypot(x,z-150)<24)continue;const c=decoColors[i%4];mesh(new THREE.DodecahedronGeometry(1.4+rnd()*1.4,0),c,x,1.1,z,true)}
 for(const [x,z] of [[-42,112],[108,28],[-125,-38],[95,-147]]){const seat=mesh(new THREE.BoxGeometry(12,1.4,3.4),mat(0xe6aa71),x,3,z,true);mesh(new THREE.BoxGeometry(12,4,.9),mat(0x4d8c85),x,5.4,z-2,true);for(const offset of [-4.5,4.5])mesh(new THREE.BoxGeometry(.9,3,.9),mat(0x425f68),x+offset,1.5,z,true)}
 // Concept 2: colorful, faceted adventure-park details. Decorative props never alter hazard physics.
 const stoneA=mat(0xa6a1b4),stoneB=mat(0xd0b9ae),walk=mat(0xe6ca98),deepWater=mat(0x168fb6),reed=mat(0x4f9a45);
-for(let i=0;i<46;i++){const x=(rnd()-.5)*475,z=(rnd()-.5)*475;if(((x-48)/83)**2+((z+33)/61)**2<1||targets.some(t=>Math.hypot(x-t.x,z-t.z)<18)||Math.hypot(x,z-150)<21)continue;const r=1.7+rnd()*3.3;const rock=mesh(new THREE.DodecahedronGeometry(r,0),i%3?stoneA:stoneB,x,r*.45,z,true);rock.rotation.set(rnd()*.3,rnd()*6,rnd()*.3)}
+for(let i=0;i<22;i++){const x=(rnd()-.5)*475,z=(rnd()-.5)*475;if(((x-48)/83)**2+((z+33)/61)**2<1||targets.some(t=>Math.hypot(x-t.x,z-t.z)<18)||Math.hypot(x,z-150)<21)continue;const r=1.7+rnd()*3.3;const rock=mesh(new THREE.DodecahedronGeometry(r,0),i%3?stoneA:stoneB,x,r*.45,z,true);rock.rotation.set(rnd()*.3,rnd()*6,rnd()*.3)}
 for(let i=0;i<34;i++){const angle=i*Math.PI*2/34;const x=48+Math.cos(angle)*77,z=-33+Math.sin(angle)*52;const r=2+rnd()*2.2;const rock=mesh(new THREE.DodecahedronGeometry(r,0),i%3?stoneB:stoneA,x,r*.4,z,true);rock.rotation.y=rnd()*6}
 for(let i=0;i<15;i++){const a=i*2.39996,x=48+Math.cos(a)*69,z=-33+Math.sin(a)*44;const stem=mesh(new THREE.ConeGeometry(.75,4,4),reed,x,2,z,true);stem.rotation.z=(rnd()-.5)*.4}
 for(let i=0;i<16;i++){const x=48+(rnd()-.5)*125,z=-33+(rnd()-.5)*78;if(((x-48)/69)**2+((z+33)/45)**2>.9)continue;const lily=mesh(new THREE.CircleGeometry(1.8+rnd(),7),mat(0x68c66c),x,.19,z);lily.rotation.x=-Math.PI/2}
