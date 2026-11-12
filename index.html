@@ -55,16 +55,18 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min(.04,(now-
 if(catchAnim){catchAnim.t+=dt;const target=targets[catchAnim.i];disc.position.set(target.x,Math.max(5.6,10-catchAnim.t*12),target.z);disc.rotation.set(0,0,0);if(catchAnim.t>.65){baskets[catchAnim.i].visible=false;catchAnim=null;disc.position.set(position.x,.5,position.z);shadow.position.set(position.x,.1,position.z)}}
 else if(flying){
 const f=flying;
-if(f.bounce){f.bounce.t+=dt;const t=Math.min(1,f.bounce.t/.55),q=f.bounce;const p=new THREE.Vector3(q.start.x+q.velocity.x*t*9,q.start.y+q.velocity.y*t*5-12*t*t,q.start.z+q.velocity.z*t*9);disc.position.set(p.x,Math.max(.5,p.y),p.z);shadow.position.set(p.x,.1,p.z);disc.rotation.z=Math.sin(t*Math.PI)*.25;if(t>=1||p.y<=.5&&t>.3){land(p)}}
+if(f.pass){f.pass.t+=dt;const q=f.pass,t=Math.min(1,q.t/1.05),distance=q.speed*22*t;const p=new THREE.Vector3(q.start.x+q.dir.x*distance,Math.max(.5,q.start.y-5*t-9*t*t),q.start.z+q.dir.z*distance);disc.position.copy(p);shadow.position.set(p.x,.1,p.z);disc.rotation.y+=dt*7;if(t>=1||p.y<=.5&&t>.25)land(p)}
+else if(f.bounce){f.bounce.t+=dt;const t=Math.min(1,f.bounce.t/.55),q=f.bounce;const p=new THREE.Vector3(q.start.x+q.velocity.x*t*9,q.start.y+q.velocity.y*t*5-12*t*t,q.start.z+q.velocity.z*t*9);disc.position.set(p.x,Math.max(.5,p.y),p.z);shadow.position.set(p.x,.1,p.z);disc.rotation.z=Math.sin(t*Math.PI)*.25;if(t>=1||p.y<=.5&&t>.3){land(p)}}
 else{
 const previous=f.t;f.t=Math.min(1,f.t+dt/1.55);const p=flightPoint(f,f.t);disc.position.copy(p);disc.rotation.set(0,disc.rotation.y+dt*9,0);shadow.position.set(p.x,.1,p.z);
-let caught=-1,hit=null;const n=Math.max(1,Math.ceil((f.t-previous)*f.len/1.5));
-for(let k=1;k<=n&&!hit&&caught<0;k++){const tt=previous+(f.t-previous)*k/n,q=flightPoint(f,tt);
-for(let i=0;i<targets.length;i++){if(completed.has(i))continue;const target=targets[i];if(Math.hypot(q.x-target.x,q.z-target.z)<4.5&&q.y>=6.5&&q.y<=12.3){caught=i;break}}
+let caught=-1,hit=null,basketImpact=null;const n=Math.max(1,Math.ceil((f.t-previous)*f.len/1.5));
+for(let k=1;k<=n&&!hit&&!basketImpact&&caught<0;k++){const tt=previous+(f.t-previous)*k/n,q=flightPoint(f,tt);
+for(let i=0;i<targets.length;i++){if(completed.has(i))continue;const target=targets[i];if(f.ignoredBasket===i)continue;const radius=Math.hypot(q.x-target.x,q.z-target.z);if(radius<4.5&&q.y>=6.5&&q.y<=11.3){const pole=radius<1.4,edge=radius>2.9,fast=f.len>85;if(!edge&&(!fast||pole)){caught=i}else{basketImpact={i,q:q.clone(),radius,edge,fast}}break}}
 if(caught>=0)break;
 if(!f.underTree||tt>.17){for(const tr of trees){if(Math.hypot(q.x-tr.x,q.z-tr.z)<treeRadiusAt(tr,q.y)+.6&&treeRadiusAt(tr,q.y)>0){hit={q,tr,tt};break}}}
 }
 if(caught>=0){completeBasket(caught);flying=null;guide.visible=false;document.querySelector('#aimstatus').textContent='Hold the disc and pull backward to throw';sync()}
+else if(basketImpact){const impact=basketImpact;f.ignoredBasket=impact.i;if(impact.edge){const outward=new THREE.Vector3(impact.q.x-targets[impact.i].x,0,impact.q.z-targets[impact.i].z).normalize();const tangent=new THREE.Vector3(-outward.z,0,outward.x);const velocity=outward.multiplyScalar(.65).addScaledVector(tangent,tangent.dot(f.dir)*.4);velocity.y=.18;f.bounce={start:impact.q.clone(),velocity,t:0};toast('Rim hit!')}else{f.pass={start:impact.q.clone(),dir:f.dir.clone(),speed:Math.max(.45,f.len/125)*.65,t:0};toast('Too much speed!')}}
 else if(hit){const q=hit.q,normal=new THREE.Vector3(q.x-hit.tr.x,0,q.z-hit.tr.z).normalize();if(normal.lengthSq()<.01)normal.set(1,0,0);const tangent=new THREE.Vector3(-normal.z,0,normal.x);const side=tangent.dot(f.dir);const velocity=normal.multiplyScalar(.45+Math.min(.55,f.len/260)).addScaledVector(tangent,side*.45);velocity.y=Math.max(.2,.7-q.y/60);f.bounce={start:q.clone(),velocity,t:0};toast('Tree bounce!')}
 else if(f.t>=1)land(p)
 }}
