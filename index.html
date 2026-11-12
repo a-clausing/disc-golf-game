@@ -14,7 +14,7 @@ for(const t of targets){let strip=mesh(new THREE.PlaneGeometry(38,150),fairway,(
 const lake=mesh(new THREE.CircleGeometry(47,40),water,48,.14,-33);lake.rotation.x=-Math.PI/2;lake.scale.set(1.5,1,1);
 for(let i=0;i<13;i++){let x=(Math.sin(i*2.7)*110),z=(Math.cos(i*3.8)*115);if(Math.hypot(x-48,z+33)<67)continue;let patch=mesh(new THREE.CircleGeometry(8+i%5*3,20),sand,x,.09,z);patch.rotation.x=-Math.PI/2}
 const trees=[];let seed=1234;function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
-for(let i=0;i<140;i++){let x=(rnd()-.5)*470,z=(rnd()-.5)*470;if(Math.hypot(x,z-150)<28||targets.some(t=>Math.hypot(x-t.x,z-t.z)<19)||Math.hypot(x-48,z+33)<65)continue;const h=9+rnd()*15;mesh(new THREE.CylinderGeometry(1.4,2.1,h*.55,7),trunk,x,h*.275,z,true);let top=mesh(new THREE.ConeGeometry(6+rnd()*4,h,7),i%2?leaf:leaf2,x,h*.72,z,true);trees.push({x,z,r:5})}
+for(let i=0;i<140;i++){let x=(rnd()-.5)*470,z=(rnd()-.5)*470;if(Math.hypot(x,z-150)<28||targets.some(t=>Math.hypot(x-t.x,z-t.z)<19)||Math.hypot(x-48,z+33)<65)continue;const h=9+rnd()*15;mesh(new THREE.CylinderGeometry(1.4,2.1,h*.55,7),trunk,x,h*.275,z,true);const radius=6+rnd()*4;let top=mesh(new THREE.ConeGeometry(radius,h,7),i%2?leaf:leaf2,x,h*.72,z,true);trees.push({x,z,r:radius,h,base:h*.22,top:h*1.22,trunkR:2.1})}
 const baskets=[];targets.forEach((p,i)=>{const group=new THREE.Group();group.position.copy(p);scene.add(group);
 const color=mat(colors[i]),dark=mat(0x465f60),silver=mat(0xdde7e6);
 function part(geo,m,x,y,z){const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=true;group.add(o);return o}
@@ -48,7 +48,9 @@ canvas.addEventListener('pointerup',e=>{if(aiming&&aiming.id===e.pointerId){if(a
 canvas.addEventListener('pointercancel',e=>{pointers.delete(e.pointerId);if(aiming&&aiming.id===e.pointerId){cancelAim();}drag=null;pinch=0});
 canvas.addEventListener('wheel',e=>{zoom=Math.max(65,Math.min(310,zoom+e.deltaY*.08));e.preventDefault()},{passive:false});
 let last=performance.now();
-function land(p){position.set(p.x,0,p.z);if(Math.hypot(p.x-48,p.z+33)<50){shots++;position.copy(flying.start);toast('Water hazard · +1 throw')}underTree=trees.some(tr=>Math.hypot(position.x-tr.x,position.z-tr.z)<tr.r+9);flying=null;disc.position.set(position.x,.5,position.z);shadow.position.set(position.x,.1,position.z);document.querySelector('#aimstatus').textContent=underTree?'Under trees: next throw has reduced distance':'Hold the disc and pull backward to throw';sync()}
+function treeRadiusAt(tr,y){if(y>=tr.base&&y<=tr.top)return tr.r*(tr.top-y)/(tr.top-tr.base);if(y>=0&&y<=tr.h*.55)return tr.trunkR;return 0}
+function underCanopy(x,z){return trees.some(tr=>Math.hypot(x-tr.x,z-tr.z)<tr.r)}
+function land(p){position.set(p.x,0,p.z);if(Math.hypot(p.x-48,p.z+33)<50){shots++;position.copy(flying.start);toast('Water hazard · +1 throw')}underTree=underCanopy(position.x,position.z);flying=null;disc.position.set(position.x,.5,position.z);shadow.position.set(position.x,.1,position.z);document.querySelector('#aimstatus').textContent=underTree?'Under trees: next throw has reduced distance':'Hold the disc and pull backward to throw';sync()}
 function animate(now){requestAnimationFrame(animate);const dt=Math.min(.04,(now-last)/1000);last=now;
 if(catchAnim){catchAnim.t+=dt;const target=targets[catchAnim.i];disc.position.set(target.x,Math.max(5.6,10-catchAnim.t*12),target.z);disc.rotation.set(0,0,0);if(catchAnim.t>.65){baskets[catchAnim.i].visible=false;catchAnim=null;disc.position.set(position.x,.5,position.z);shadow.position.set(position.x,.1,position.z)}}
 else if(flying){
@@ -60,7 +62,7 @@ let caught=-1,hit=null;const n=Math.max(1,Math.ceil((f.t-previous)*f.len/1.5));
 for(let k=1;k<=n&&!hit&&caught<0;k++){const tt=previous+(f.t-previous)*k/n,q=flightPoint(f,tt);
 for(let i=0;i<targets.length;i++){if(completed.has(i))continue;const target=targets[i];if(Math.hypot(q.x-target.x,q.z-target.z)<4.5&&q.y>=6.5&&q.y<=12.3){caught=i;break}}
 if(caught>=0)break;
-if(!f.underTree||tt>.17){for(const tr of trees){if(Math.hypot(q.x-tr.x,q.z-tr.z)<tr.r+1.3&&q.y<21){hit={q,tr,tt};break}}}
+if(!f.underTree||tt>.17){for(const tr of trees){if(Math.hypot(q.x-tr.x,q.z-tr.z)<treeRadiusAt(tr,q.y)+.6&&treeRadiusAt(tr,q.y)>0){hit={q,tr,tt};break}}}
 }
 if(caught>=0){completeBasket(caught);flying=null;guide.visible=false;document.querySelector('#aimstatus').textContent='Hold the disc and pull backward to throw';sync()}
 else if(hit){const q=hit.q,normal=new THREE.Vector3(q.x-hit.tr.x,0,q.z-hit.tr.z).normalize();if(normal.lengthSq()<.01)normal.set(1,0,0);const tangent=new THREE.Vector3(-normal.z,0,normal.x);const side=tangent.dot(f.dir);const velocity=normal.multiplyScalar(1.5+Math.min(2,f.len/80)).addScaledVector(tangent,side*1.6);velocity.y=Math.max(0.3,1.8-q.y/25);f.bounce={start:q.clone(),velocity,t:0};toast('Tree bounce!')}
